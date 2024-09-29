@@ -1,0 +1,38 @@
+BEGIN
+  -- First, update the tickets table
+  UPDATE tickets
+  SET STATUS = 'Closed',
+      CLOSED_DATE = SYSDATE
+  WHERE TICKET_ID = :P7_TICKETID;
+
+  -- Declare cursor and variables to hold the values from eng_ticket
+  DECLARE
+    CURSOR c_eng_tickets IS
+      SELECT eng_id, ticket_id, priority
+        FROM eng_ticket
+       WHERE ticket_id = :P7_TICKETID;
+    
+    v_eng_id eng_ticket.eng_id%TYPE;
+    v_ticket_id eng_ticket.ticket_id%TYPE;
+    v_priority eng_ticket.priority%TYPE;
+  BEGIN
+    -- Open the cursor
+    OPEN c_eng_tickets;
+    LOOP
+      -- Fetch each row into variables
+      FETCH c_eng_tickets INTO v_eng_id, v_ticket_id, v_priority;
+      EXIT WHEN c_eng_tickets%NOTFOUND;
+      
+      -- Insert the values into closed_tickets
+      INSERT INTO closed_tickets (eng_id, ticket_id, priority)
+      VALUES (v_eng_id, v_ticket_id, v_priority);
+      
+      -- Delete the record from eng_ticket
+      DELETE FROM eng_ticket
+       WHERE ticket_id = v_ticket_id
+         AND eng_id = v_eng_id; -- Ensure deletion is specific to the current row
+    END LOOP;
+    -- Close the cursor
+    CLOSE c_eng_tickets;
+  END;
+END;
