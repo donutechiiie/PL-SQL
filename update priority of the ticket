@@ -1,0 +1,42 @@
+-- Ensure the DUE_DATE column exists in the tickets table
+ALTER TABLE tickets ADD DUE_DATE DATE;
+
+CREATE OR REPLACE PROCEDURE update_ticket_priorities AS
+    -- Variables to store the duration for each priority level
+    v_low_duration NUMBER;
+    v_medium_duration NUMBER;
+    v_high_duration NUMBER;
+    v_critical_duration NUMBER;
+
+BEGIN
+    -- Retrieve the durations from the PRIORITY table
+    SELECT LOW, MEDIUM, HIGH, CRITICAL
+      INTO v_low_duration, v_medium_duration, v_high_duration, v_critical_duration
+      FROM PRIORITY
+     WHERE ROWNUM = 1; -- Assumes only one row in the PRIORITY table
+
+    -- Update Low to Medium after the specified duration
+    UPDATE tickets
+    SET PRIORITY = 'Medium', 
+        DUE_DATE = CREATED_DATE + v_medium_duration
+    WHERE PRIORITY = 'Low' AND CREATED_DATE < SYSDATE - v_low_duration;
+
+    -- Update Medium to High after the specified duration
+    UPDATE tickets
+    SET PRIORITY = 'High', 
+        DUE_DATE = CREATED_DATE + v_high_duration
+    WHERE PRIORITY = 'Medium' AND CREATED_DATE < SYSDATE - v_medium_duration;
+
+    -- Update High to Critical after the specified duration
+    UPDATE tickets
+    SET PRIORITY = 'Critical', 
+        DUE_DATE = CREATED_DATE + v_critical_duration
+    WHERE PRIORITY = 'High' AND CREATED_DATE < SYSDATE - v_high_duration;
+
+    -- Set Due Date for all new Low priority tickets
+    UPDATE tickets
+    SET DUE_DATE = CREATED_DATE + v_low_duration
+    WHERE PRIORITY = 'Low' AND DUE_DATE IS NULL;
+    
+END;
+/
